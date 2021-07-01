@@ -1,1 +1,7 @@
 jina[hub]==2.0.0
+# numpy
+resampy
+# tensorflow
+tf_slim
+six
+soundfile
