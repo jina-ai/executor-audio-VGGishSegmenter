@@ -7,7 +7,7 @@ import numpy as np
 from jina import Executor, DocumentArray, requests
 
 
-class MyDummyExecutor(Executor):
+class VGGishSegmenter(Executor):
     """
     Encode the Document blob into embedding.
 
@@ -19,7 +19,7 @@ class MyDummyExecutor(Executor):
         self._dim = embedding_dim
 
     @requests
-    def encode(self, docs: Optional[DocumentArray], **kwargs):
+    def segment(self, docs: Optional[DocumentArray], **kwargs):
         """
         Encode all docs with images and store the encodings in the embedding attribute of the docs.
         :param docs: documents sent to the encoder. The docs must have `blob` of the shape `256`.

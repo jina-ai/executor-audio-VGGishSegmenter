@@ -4,9 +4,9 @@
 
 ----
 
-# ✨ MyDummyExecutor
+# ✨ VGGishSegmenter
 
-**MyDummyExecutor** is a class that ...
+**VGGishSegmenter** is a class that segments the audio signal on the doc-level into frames on the chunk-level.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -21,8 +21,7 @@
 
 ## 🌱 Prerequisites
 
-Some conditions to fulfill before running the executor
-
+None
 ## 🚀 Usages
 
 ### 🚚 Via JinaHub
@@ -33,7 +32,7 @@ Use the prebuilt images from JinaHub in your python codes,
 ```python
 from jina import Flow
 	
-f = Flow().add(uses='jinahub+docker://MyDummyExecutor')
+f = Flow().add(uses='jinahub+docker://VGGishSegmenter')
 ```
 
 or in the `.yml` config.
@@ -42,7 +41,7 @@ or in the `.yml` config.
 jtype: Flow
 pods:
   - name: encoder
-    uses: 'jinahub+docker://MyDummyExecutor'
+    uses: 'jinahub+docker://VGGishSegmenter'
 ```
 
 #### using source codes
@@ -51,7 +50,7 @@ Use the source codes from JinaHub in your python codes,
 ```python
 from jina import Flow
 	
-f = Flow().add(uses='jinahub://MyDummyExecutor')
+f = Flow().add(uses='jinahub://VGGishSegmenter')
 ```
 
 or in the `.yml` config.
@@ -60,25 +59,25 @@ or in the `.yml` config.
 jtype: Flow
 pods:
   - name: encoder
-    uses: 'jinahub://MyDummyExecutor'
+    uses: 'jinahub://VGGishSegmenter'
 ```
 
 
 ### 📦️ Via Pypi
 
-1. Install the `jinahub-MY-DUMMY-EXECUTOR` package.
+1. Install the `jinahub-VGGishSegmenter` package.
 
 	```bash
-	pip install git+https://github.com/jina-ai/EXECUTOR_REPO_NAME.git
+	pip install git+https://github.com/jina-ai/executor-audio-VGGishSegmenter.git
 	```
 
-1. Use `jinahub-MY-DUMMY-EXECUTOR` in your code
+1. Use `jinahub-VGGishSegmenter` in your code
 
 	```python
 	from jina import Flow
-	from jinahub.SUB_PACKAGE_NAME.MODULE_NAME import MyDummyExecutor
+	from jinahub.segmenter.vggish_audio_segmenter import VGGishSegmenter
 	
-	f = Flow().add(uses=MyDummyExecutor)
+	f = Flow().add(uses=VGGishSegmenter)
 	```
 
 
@@ -87,17 +86,17 @@ pods:
 1. Clone the repo and build the docker image
 
 	```shell
-	git clone https://github.com/jina-ai/EXECUTOR_REPO_NAME.git
-	cd EXECUTOR_REPO_NAME
-	docker build -t my-dummy-executor-image .
+	git clone https://github.com/jina-ai/executor-audio-VGGishSegmenter.git
+	cd executor-audio-VGGishSegmenter
+	docker build -t executor-audio-VGGishSegmenter-image .
 	```
 
-1. Use `my-dummy-executor-image` in your codes
+1. Use `executor-audio-VGGishSegmenter-image` in your codes
 
 	```python
 	from jina import Flow
 	
-	f = Flow().add(uses='docker://my-dummy-executor-image:latest')
+	f = Flow().add(uses='docker://executor-audio-VGGishSegmenter-image:latest')
 	```
 	
 
@@ -110,7 +109,7 @@ It not necessary to demonstrate the usages of every inputs. It will be demonstra
 ```python
 from jina import Flow, Document
 
-f = Flow().add(uses='jinahub+docker://MyDummyExecutor')
+f = Flow().add(uses='jinahub+docker://VGGishSegmenter')
 
 with f:
     resp = f.post(on='foo', inputs=Document(), return_results=True)
@@ -142,5 +141,5 @@ When there are multiple APIs, we need to list the inputs and outputs for each on
 `Document` with `embedding` fields filled with an `ndarray` of the shape `embedding_dim` (=128, by default) with `dtype=nfloat32`.
 
 ## 🔍️ Reference
-- Some reference
+- https://github.com/tensorflow/models/blob/master/research/audioset/vggish/README.md
 
