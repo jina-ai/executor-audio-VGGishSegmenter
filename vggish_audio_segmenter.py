@@ -4,7 +4,7 @@ __license__ = "Apache-2.0"
 from typing import Optional, Iterable
 import numpy as np
 
-from jina import Executor, DocumentArray, requests
+from jina import Executor, Document, DocumentArray, requests
 from vggish import vggish_input, vggish_params
 
 class VGGishSegmenter(Executor):
@@ -14,20 +14,18 @@ class VGGishSegmenter(Executor):
     :param embedding_dim: the output dimensionality of the embedding
     """
 
-    def __init__(self, frame_length: int = 2048, hop_length: int = 512, default_traversal_paths: Iterable[str] = ['r'], *args, **kwargs ):
+    def __init__(self, frame_length: int = 2048, hop_length: int = 512, chunk_duration: int = 10,
+                sample_rate: int = 44100, default_traversal_paths: Iterable[str] = ['r'], *args, **kwargs ):
         super().__init__(*args, **kwargs)
         self.frame_length = frame_length
         self.hop_length = hop_length
+        self.chunk_duration = chunk_duration
+        self.sample_rate = sample_rate
         self.default_traversal_paths = default_traversal_paths
-
-        # def _segment(self, signal):
-        #     if signal.ndim == 1:  # mono
-        #
-        #     elif signal.ndim == 2:  # stereo
 
 
     @requests
-    def segment(self, docs: Optional[DocumentArray], **kwargs):
+    def segment(self, docs: Optional[DocumentArray], parameters: dict, **kwargs):
         """
         Encode all docs with audio and store the segmented regions in the chunks attribute of the docs.
         :param docs: documents sent to the segmenter. The docs must have `blob` of the shape `256`.
@@ -35,21 +33,40 @@ class VGGishSegmenter(Executor):
         if not docs:
             return
 
-        docs = self._get_input_data(docs, {})
+
+        for idx, doc in enumerate(self._get_input_data(docs, parameters)):
+            chunk_size = int(self.chunk_duration * self.sample_rate)
+            strip = int(2 * self.sample_rate)
+            num_chunks = int((doc.blob.shape[0] - chunk_size) / strip)
+            for chunk_id in range(num_chunks):
+                beg = chunk_id * strip
+                end = beg + chunk_size
+                if end > doc.blob.shape[0]:
+                    continue
+                doc.chunks.append(
+                    Document(
+                        blob=doc.blob[beg:end],
+                        offset=idx,
+                        location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
+                        tags=doc.tags))
+
         for doc in docs:
-            channel_frames = vggish_input.waveform_to_examples(doc.blob, self.frame_length)
+            result_chunk = []
+            for chunk in doc.chunks:
+                mel_data = vggish_input.waveform_to_examples(chunk.blob, self.sample_rate)
+                if mel_data.ndim != 3:
+                    print(
+                        f'failed to convert from wave to mel, chunk.blob: {chunk.blob.shape}, sample_rate: {SAMPLE_RATE}')
+                    continue
+                if mel_data.shape[0] <= 0:
+                    print(f'chunk between {chunk.location} is skipped due to the duration is too short')
+                if mel_data.ndim == 2:
+                    mel_data = np.atleast_3d(mel_data)
+                    mel_data = mel_data.reshape(1, mel_data.shape[0], mel_data.shape[1])
+                chunk.blob = mel_data
+                result_chunk.append(chunk)
+            doc.chunks = result_chunk
 
-            chunks = []
-
-            channel_tags = ('mono',) if len(channel_frames) == 1 else ('left', 'right')
-
-            for frames, tag in zip(channel_frames, channel_tags):
-                start = 0
-                for idx, frame in enumerate(frames):
-                    chunks.append(dict(offset=idx, weight=1.0, blob=frame, location=[start, start + len(frame)],
-                                       tags={'channel': tag}))
-                    start += self.hop_length
-            doc.chunks = chunks
 
     def _get_input_data(self, docs: DocumentArray, parameters: dict):
         """Create a filtered set of Documents to iterate over."""
