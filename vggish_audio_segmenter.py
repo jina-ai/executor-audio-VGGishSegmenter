@@ -28,29 +28,38 @@ class VGGishSegmenter(Executor):
     def segment(self, docs: Optional[DocumentArray], parameters: dict, **kwargs):
         """
         Encode all docs with audio and store the segmented regions in the chunks attribute of the docs.
-        :param docs: documents sent to the segmenter. The docs must have `blob` of the shape `256`.
+        :param docs: documents sent to the segmenter.
         """
         if not docs:
             return
 
+        filtered_docs = self._get_input_data(docs, parameters)
 
-        for idx, doc in enumerate(self._get_input_data(docs, parameters)):
-            chunk_size = int(self.chunk_duration * self.sample_rate)
+        for idx, doc in enumerate(filtered_docs):
+            chunk_size = int(self.chunk_duration * self.sample_rate) # number of samples
             strip = int(2 * self.sample_rate)
-            num_chunks = int((doc.blob.shape[0] - chunk_size) / strip)
-            for chunk_id in range(num_chunks):
-                beg = chunk_id * strip
-                end = beg + chunk_size
-                if end > doc.blob.shape[0]:
-                    continue
+            if doc.blob.shape[0] < chunk_size:
                 doc.chunks.append(
                     Document(
-                        blob=doc.blob[beg:end],
+                        blob=doc.blob[:chunk_size],
                         offset=idx,
-                        location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
+                        location=[0, self.chunk_duration],
                         tags=doc.tags))
+            else:
+                num_chunks = int((doc.blob.shape[0] - chunk_size) / strip)
+                for chunk_id in range(num_chunks):
+                    beg = chunk_id * strip
+                    end = beg + chunk_size
+                    if end > doc.blob.shape[0]:
+                        continue
+                    doc.chunks.append(
+                        Document(
+                            blob=doc.blob[beg:end],
+                            offset=idx,
+                            location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
+                            tags=doc.tags))
 
-        for doc in docs:
+        for doc in filtered_docs:
             result_chunk = []
             for chunk in doc.chunks:
                 mel_data = vggish_input.waveform_to_examples(chunk.blob, self.sample_rate)
