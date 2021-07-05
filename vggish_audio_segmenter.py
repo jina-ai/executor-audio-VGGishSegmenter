@@ -49,18 +49,23 @@ class VGGishSegmenter(Executor):
             #             tags=doc.tags))
             # else:
             # num_chunks = int((doc.blob.shape[0] - chunk_size) / strip)
-            num_chunks = int(doc.blob.shape[0] / chunk_size)
-            for chunk_id in range(num_chunks):
-                beg = chunk_id * strip
-                end = beg + chunk_size
-                if end > doc.blob.shape[0]:
-                    continue
-                doc.chunks.append(
-                    Document(
-                        blob=doc.blob[beg:end],
-                        offset=idx,
-                        location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
-                        tags=doc.tags))
+            num_channels = doc.blob.ndim
+            channel_tags = ('mono',) if num_channels == 1 else ('left', 'right')
+
+            num_chunks_per_channel = int(doc.tags['n_frames']*doc.tags['frame_length'] / chunk_size)
+
+            for chunks, tag in zip(doc.blob, channel_tags): # traverse through channels
+                for chunk_id in range(num_chunks_per_channel):
+                    beg = chunk_id * strip
+                    end = beg + chunk_size
+                    if end > doc.blob.shape[0]:
+                        continue
+                    doc.chunks.append(
+                        Document(
+                            blob=chunks[beg:end],
+                            offset=idx,
+                            location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
+                            tags={'channel': tag}))
 
         for doc in filtered_docs:
             result_chunk = []
