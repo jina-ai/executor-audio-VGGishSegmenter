@@ -14,11 +14,9 @@ class VGGishSegmenter(Executor):
     :param embedding_dim: the output dimensionality of the embedding
     """
 
-    def __init__(self, frame_length: int = 2048, hop_length: int = 512, chunk_duration: int = 10,
+    def __init__(self, chunk_duration: int = 10,
                 sample_rate: int = 44100, default_traversal_paths: Iterable[str] = ['r'], *args, **kwargs ):
         super().__init__(*args, **kwargs)
-        self.frame_length = frame_length
-        self.hop_length = hop_length
         self.chunk_duration = chunk_duration
         self.sample_rate = sample_rate
         self.default_traversal_paths = default_traversal_paths
@@ -36,32 +34,38 @@ class VGGishSegmenter(Executor):
         filtered_docs = self._get_input_data(docs, parameters)
 
         for idx, doc in enumerate(filtered_docs):
+            # a chunk consists of samples collected during chunk_duration
             chunk_size = int(self.chunk_duration * self.sample_rate) # number of samples
             strip = int(2 * self.sample_rate)
-            if doc.blob.shape[0] < chunk_size:
+            # print(doc.blob.shape[0])
+            # print(chunk_size)
+            # print(strip)
+            # if doc.blob.shape[0] < chunk_size:
+            #     doc.chunks.append(
+            #         Document(
+            #             blob=doc.blob[:chunk_size],
+            #             offset=idx,
+            #             location=[0, self.chunk_duration],
+            #             tags=doc.tags))
+            # else:
+            # num_chunks = int((doc.blob.shape[0] - chunk_size) / strip)
+            num_chunks = int(doc.blob.shape[0] / chunk_size)
+            for chunk_id in range(num_chunks):
+                beg = chunk_id * strip
+                end = beg + chunk_size
+                if end > doc.blob.shape[0]:
+                    continue
                 doc.chunks.append(
                     Document(
-                        blob=doc.blob[:chunk_size],
+                        blob=doc.blob[beg:end],
                         offset=idx,
-                        location=[0, self.chunk_duration],
+                        location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
                         tags=doc.tags))
-            else:
-                num_chunks = int((doc.blob.shape[0] - chunk_size) / strip)
-                for chunk_id in range(num_chunks):
-                    beg = chunk_id * strip
-                    end = beg + chunk_size
-                    if end > doc.blob.shape[0]:
-                        continue
-                    doc.chunks.append(
-                        Document(
-                            blob=doc.blob[beg:end],
-                            offset=idx,
-                            location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
-                            tags=doc.tags))
 
         for doc in filtered_docs:
             result_chunk = []
             for chunk in doc.chunks:
+                print(chunk.blob)
                 mel_data = vggish_input.waveform_to_examples(chunk.blob, self.sample_rate)
                 if mel_data.ndim != 3:
                     print(
