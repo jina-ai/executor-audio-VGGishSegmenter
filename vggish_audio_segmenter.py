@@ -20,7 +20,7 @@ class VGGishSegmenter(Executor):
         self.sampling_factor = sampling_factor # i.e. the n in sampling notation s(nT)
         self.chunk_duration = chunk_duration
         self.default_traversal_paths = default_traversal_paths
-
+        self.logger = JinaLogger('MyVGGishAudioSegmenter')
 
     @requests
     def segment(self, docs: Optional[DocumentArray], parameters: dict, **kwargs):
@@ -90,11 +90,11 @@ class VGGishSegmenter(Executor):
             for chunk in doc.chunks:
                 mel_data = vggish_input.waveform_to_examples(chunk.blob, chunk.tags['sampling_rate'])
                 if mel_data.ndim != 3:
-                    JinaLogger.error(
+                    self.logger.error(
                         f'failed to convert from wave to mel, chunk.blob: {chunk.blob.shape}, sample_rate: {SAMPLE_RATE}')
                     continue
                 if mel_data.shape[0] <= 0:
-                    JinaLogger.info(f'chunk between {chunk.location} is skipped due to the duration is too short')
+                    self.logger.info(f'chunk between {chunk.location} is skipped due to the duration is too short')
                 if mel_data.ndim == 2:
                     mel_data = np.atleast_3d(mel_data)
                     mel_data = mel_data.reshape(1, mel_data.shape[0], mel_data.shape[1])
