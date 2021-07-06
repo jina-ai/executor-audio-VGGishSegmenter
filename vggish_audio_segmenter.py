@@ -20,7 +20,7 @@ class VGGishSegmenter(Executor):
         self.sampling_factor = sampling_factor # i.e. the n in sampling notation s(nT)
         self.chunk_duration = chunk_duration
         self.default_traversal_paths = default_traversal_paths
-        self.logger = JinaLogger('MyVGGishAudioSegmenter')
+        self.logger = JinaLogger(self.__class__.__name__)
 
     @requests
     def segment(self, docs: Optional[DocumentArray], parameters: dict, **kwargs):
@@ -37,7 +37,7 @@ class VGGishSegmenter(Executor):
 
         filtered_docs = self._get_input_data(docs, parameters)
 
-        for idx, doc in enumerate(filtered_docs):
+        for doc in filtered_docs:
             # a chunk consists of samples collected during chunk_duration
             doc_sampling_rate = doc.tags['sampling_rate']
             chunk_size = int(self.chunk_duration * doc_sampling_rate) # number of samples
