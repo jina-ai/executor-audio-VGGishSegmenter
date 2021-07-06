@@ -81,7 +81,7 @@ class VGGishSegmenter(Executor):
                             Document(
                                 blob=chunks[beg:end],
                                 offset=idx,
-                                location=[chunk_id * 2, chunk_id * 2 + self.chunk_duration],
+                                location=[beg, end],
                                 tags={'channel': tag}))
 
         for doc in filtered_docs:

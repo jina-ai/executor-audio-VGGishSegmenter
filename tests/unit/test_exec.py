@@ -56,6 +56,7 @@ def test_location_mono():
     num_docs = 3
     chunk_duration = 1
     sample_rate = 44100
+    sampling_factor = 2
     chunk_size = chunk_duration * sample_rate
 
     signal_orig = np.random.randn(frame_length * n_frames)
@@ -68,11 +69,11 @@ def test_location_mono():
 
     assert len(docs) == num_docs
     for d in docs:
-        assert len(d.chunks) == expected_n_frames
+        assert len(d.chunks) == expected_n_frames * sampling_factor
         for i, chunk in enumerate(d.chunks):
-            expected_start = i % expected_n_frames
-            assert chunk.location == [expected_start, expected_start + frame_length]
-            assert chunk['tags']['channel'] == expected_channel
+            expected_start = int(i % (expected_n_frames*sampling_factor)*chunk_size/sampling_factor)
+            assert chunk.location == [expected_start, expected_start + chunk_size]
+            assert chunk.tags['channel'] == expected_channel
 
 def test_location_stereo():
     frame_length = 2048
@@ -80,6 +81,7 @@ def test_location_stereo():
     num_docs = 3
     num_channels = 2
     chunk_duration = 1
+    sampling_factor = 2
     sample_rate = 44100
     chunk_size = chunk_duration*sample_rate
 
@@ -91,9 +93,9 @@ def test_location_stereo():
     segmenter.segment(docs, {})
     assert len(docs) == num_docs
     for d in docs:
-        assert len(d.chunks) == expected_n_frames * num_channels
+        assert len(d.chunks) == expected_n_frames * num_channels * sampling_factor
         for i, chunk in enumerate(d.chunks):
-            expected_start = i % expected_n_frames
-            assert chunk.location == [expected_start, expected_start + frame_length]
-            expected_channel = 'left' if i // expected_n_frames == 0 else 'right'
-            assert chunk['tags']['channel'] == expected_channel
+            expected_start = int(i % (expected_n_frames*sampling_factor)*chunk_size/sampling_factor)
+            assert chunk.location == [expected_start, expected_start + chunk_size]
+            expected_channel = 'left' if i // (expected_n_frames*sampling_factor) == 0 else 'right'
+            assert chunk.tags['channel'] == expected_channel
