@@ -2,11 +2,8 @@ __copyright__ = "Copyright (c) 2020-2021 Jina AI Limited. All rights reserved."
 __license__ = "Apache-2.0"
 
 from jina import Flow, Document
-#from jinahub.segmenter.vggish_audio_segmenter import VGGishSegmenter
-import sys
-sys.path.insert(1, '../..')
+from jinahub.segmenter.vggish_audio_segmenter import VGGishSegmenter
 
-from vggish_audio_segmenter import VGGishSegmenter
 
 def test_exec():
     f = Flow().add(uses=VGGishSegmenter)
