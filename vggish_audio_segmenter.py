@@ -14,12 +14,10 @@ class VGGishSegmenter(Executor):
     :param embedding_dim: the output dimensionality of the embedding
     """
 
-    def __init__(self, sampling_factor: int=2, chunk_duration: int = 10,
-                sample_rate: int = 44100, default_traversal_paths: Iterable[str] = ['r'], *args, **kwargs ):
+    def __init__(self, sampling_factor: int=2, chunk_duration: int = 10, default_traversal_paths: Iterable[str] = ['r'], *args, **kwargs ):
         super().__init__(*args, **kwargs)
         self.sampling_factor = sampling_factor # i.e. the n in sampling notation s(nT)
         self.chunk_duration = chunk_duration
-        self.sample_rate = sample_rate
         self.default_traversal_paths = default_traversal_paths
 
 
@@ -37,7 +35,8 @@ class VGGishSegmenter(Executor):
 
         for idx, doc in enumerate(filtered_docs):
             # a chunk consists of samples collected during chunk_duration
-            chunk_size = int(self.chunk_duration * self.sample_rate) # number of samples
+            doc_sampling_rate = doc.tags['sampling_rate']
+            chunk_size = int(self.chunk_duration * doc_sampling_rate) # number of samples
             num_channels = doc.blob.ndim
             channel_tags = ('mono',) if num_channels == 1 else ('left', 'right')
 
@@ -66,9 +65,8 @@ class VGGishSegmenter(Executor):
                     doc.chunks.append(
                         Document(
                             blob=doc.blob[beg:end],
-                            offset=idx,
                             location=[beg, end],
-                            tags={'channel': channel_tags[0]}))
+                            tags={'channel': channel_tags[0], 'sampling_rate': doc_sampling_rate*self.sampling_factor}))
             else:
                 num_chunks_per_channel = int(doc.blob.shape[1] / chunk_size)*self.sampling_factor + 1
                 for channel_idx, (chunks, tag) in enumerate(zip(doc.blob, channel_tags)): # traverse through channels
@@ -80,14 +78,13 @@ class VGGishSegmenter(Executor):
                         doc.chunks.append(
                             Document(
                                 blob=chunks[beg:end],
-                                offset=idx,
                                 location=[beg, end],
-                                tags={'channel': tag}))
+                                tags={'channel': tag, 'sampling_rate': doc_sampling_rate*self.sampling_factor}))
 
         for doc in filtered_docs:
             result_chunk = []
             for chunk in doc.chunks:
-                mel_data = vggish_input.waveform_to_examples(chunk.blob, self.sample_rate)
+                mel_data = vggish_input.waveform_to_examples(chunk.blob, chunk.tags['sampling_rate'])
                 if mel_data.ndim != 3:
                     print(
                         f'failed to convert from wave to mel, chunk.blob: {chunk.blob.shape}, sample_rate: {SAMPLE_RATE}')

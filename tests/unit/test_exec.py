@@ -5,18 +5,12 @@ import numpy as np
 
 from jina import Document, DocumentArray
 from jina.executors import BaseExecutor
-#from jinahub.segmenter.vggish_audio_segmenter import VGGishSegmenter
+from jinahub.segmenter.vggish_audio_segmenter import VGGishSegmenter
 
-import sys
-sys.path.insert(1, '../..')
-
-from vggish_audio_segmenter import VGGishSegmenter
 
 def test_exec():
     ex = BaseExecutor.load_config('../../config.yml')
-    assert ex.sample_rate==44100
-
-
+    assert ex.chunk_duration == 10
 
 
 def test_mono():
@@ -25,14 +19,13 @@ def test_mono():
     signal_orig = np.random.randn(frame_length * n_frames)
 
     segmenter = VGGishSegmenter()
-    docs = DocumentArray([Document(blob=signal_orig, tags={'n_frames': 100, 'frame_length': 2048})])
+    docs = DocumentArray([Document(blob=signal_orig,
+                                   tags={'n_frames': 100, 'frame_length': 2048, 'sampling_rate': 44100})])
     segmenter.segment(docs, {})
     assert len(docs) == 1
-    chunks = docs.get_attributes('chunks')
-    assert len(chunks) == 1
-    assert len(chunks[0]) == 0
-    # for segmented_chunk in docs.get_attributes('chunks'):
-    #     assert len(segmented_chunk) == n_frames * 2 - 1
+
+    chunks = docs.traverse_flat(['c'])
+    assert len(chunks) == 0
 
 
 def test_stereo():
@@ -41,14 +34,13 @@ def test_stereo():
     signal_orig = np.random.randn(2, frame_length * n_frames)
 
     segmenter = VGGishSegmenter()
-    docs = DocumentArray([Document(blob=np.stack([signal_orig, signal_orig]), tags={'n_frames': 100, 'frame_length': 2048})])
+    docs = DocumentArray([Document(blob=np.stack([signal_orig, signal_orig]),
+                                   tags={'n_frames': 100, 'frame_length': 2048, 'sampling_rate': 44100})])
     segmenter.segment(docs, {})
     assert len(docs) == 1
-    chunks = docs.get_attributes('chunks')
-    assert len(chunks) == 1
-    assert len(chunks[0]) == 0
-    # for segmented_chunk in docs.get_attributes('chunks'):
-    #     assert len(segmented_chunk) == (n_frames * 2 - 1) * 2
+    chunks = docs.traverse_flat(['c'])
+    assert len(chunks) == 0
+
 
 def test_location_mono():
     frame_length = 2048
@@ -64,7 +56,8 @@ def test_location_mono():
     expected_channel = 'mono'
 
     segmenter = VGGishSegmenter(chunk_duration=chunk_duration)
-    docs = DocumentArray([Document(blob=signal_orig,  tags={'n_frames': 100, 'frame_length': 2048}) for i in range(num_docs)])
+    docs = DocumentArray([Document(blob=signal_orig,
+                            tags={'n_frames': 100, 'frame_length': 2048, 'sampling_rate': 44100}) for i in range(num_docs)])
     segmenter.segment(docs, {})
 
     assert len(docs) == num_docs
@@ -89,7 +82,8 @@ def test_location_stereo():
     expected_n_frames = int(signal_orig.shape[1] / chunk_size)
 
     segmenter = VGGishSegmenter(chunk_duration=chunk_duration)
-    docs = DocumentArray([Document(blob=signal_orig, tags={'n_frames': 100, 'frame_length': 2048}) for i in range(num_docs)])
+    docs = DocumentArray([Document(blob=signal_orig,
+                                   tags={'n_frames': 100, 'frame_length': 2048, 'sampling_rate': 44100}) for i in range(num_docs)])
     segmenter.segment(docs, {})
     assert len(docs) == num_docs
     for d in docs:
