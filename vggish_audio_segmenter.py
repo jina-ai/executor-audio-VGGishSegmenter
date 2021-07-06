@@ -5,6 +5,7 @@ from typing import Optional, Iterable
 import numpy as np
 
 from jina import Executor, Document, DocumentArray, requests
+from jina.logging.logger import JinaLogger
 from vggish import vggish_input, vggish_params
 
 class VGGishSegmenter(Executor):
@@ -26,7 +27,10 @@ class VGGishSegmenter(Executor):
         """
         Encode all docs with audio and store the segmented regions in the chunks attribute of the docs.
 
-        :param docs: documents sent to the segmenter.
+        :param docs: documents sent to the segmenter, with tags containing their sampling rate.
+        :param parameters dictionary to define the sampling factor and traversal_path. For example,
+            `parameters={'traversal_paths': 'c', 'sampling_factor': 10}`
+            will set the parameters for traversal_paths, sampling_factor and that are actually used
         """
         if not docs:
             return
@@ -54,11 +58,11 @@ class VGGishSegmenter(Executor):
                 beg=154350,    end=198450
                 beg=176400,    end=220500
             '''
-
+            sampling_factor = parameters.get('sampling_factor', self.sampling_factor)
             if num_channels==1:
-                num_chunks_per_channel = int(doc.blob.shape[0] / chunk_size)*self.sampling_factor + 1
+                num_chunks_per_channel = int(doc.blob.shape[0] / chunk_size)*sampling_factor + 1
                 for chunk_id in range(num_chunks_per_channel):
-                    beg = int(chunk_id * chunk_size/self.sampling_factor)
+                    beg = int(chunk_id * chunk_size/sampling_factor)
                     end = beg + chunk_size
                     if end > doc.blob.size:
                         continue
@@ -66,12 +70,12 @@ class VGGishSegmenter(Executor):
                         Document(
                             blob=doc.blob[beg:end],
                             location=[beg, end],
-                            tags={'channel': channel_tags[0], 'sampling_rate': doc_sampling_rate*self.sampling_factor}))
+                            tags={'channel': channel_tags[0], 'sampling_rate': doc_sampling_rate*sampling_factor}))
             else:
-                num_chunks_per_channel = int(doc.blob.shape[1] / chunk_size)*self.sampling_factor + 1
+                num_chunks_per_channel = int(doc.blob.shape[1] / chunk_size)*sampling_factor + 1
                 for channel_idx, (chunks, tag) in enumerate(zip(doc.blob, channel_tags)): # traverse through channels
                     for chunk_id in range(num_chunks_per_channel):
-                        beg = int(chunk_id * chunk_size / self.sampling_factor)
+                        beg = int(chunk_id * chunk_size / sampling_factor)
                         end = beg + chunk_size
                         if end > chunks.size:
                             continue
@@ -79,18 +83,18 @@ class VGGishSegmenter(Executor):
                             Document(
                                 blob=chunks[beg:end],
                                 location=[beg, end],
-                                tags={'channel': tag, 'sampling_rate': doc_sampling_rate*self.sampling_factor}))
+                                tags={'channel': tag, 'sampling_rate': doc_sampling_rate*sampling_factor}))
 
         for doc in filtered_docs:
             result_chunk = []
             for chunk in doc.chunks:
                 mel_data = vggish_input.waveform_to_examples(chunk.blob, chunk.tags['sampling_rate'])
                 if mel_data.ndim != 3:
-                    print(
+                    JinaLogger.error(
                         f'failed to convert from wave to mel, chunk.blob: {chunk.blob.shape}, sample_rate: {SAMPLE_RATE}')
                     continue
                 if mel_data.shape[0] <= 0:
-                    print(f'chunk between {chunk.location} is skipped due to the duration is too short')
+                    JinaLogger.info(f'chunk between {chunk.location} is skipped due to the duration is too short')
                 if mel_data.ndim == 2:
                     mel_data = np.atleast_3d(mel_data)
                     mel_data = mel_data.reshape(1, mel_data.shape[0], mel_data.shape[1])
