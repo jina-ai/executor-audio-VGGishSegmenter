@@ -1,4 +1,4 @@
-jtype: MyDummyExecutor
+jtype: VGGishSegmenter
 metas:
   py_modules:
-    - MODULE_NAME.py
+    - vggish_audio_segmenter.py
