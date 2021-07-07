@@ -5,7 +5,7 @@ import numpy as np
 
 from jina import Document, DocumentArray
 from jina.executors import BaseExecutor
-from jinahub.segmenter.vggish_audio_segmenter import VGGishSegmenter
+from vggish_audio_segmenter import VGGishSegmenter
 
 
 def test_exec():
@@ -34,7 +34,7 @@ def test_stereo():
     signal_orig = np.random.randn(2, frame_length * n_frames)
 
     segmenter = VGGishSegmenter()
-    docs = DocumentArray([Document(blob=np.stack([signal_orig, signal_orig]),
+    docs = DocumentArray([Document(blob=signal_orig,
                                    tags={'n_frames': 100, 'frame_length': 2048, 'sampling_rate': 44100})])
     segmenter.segment(docs, {})
     assert len(docs) == 1
