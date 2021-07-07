@@ -12,12 +12,15 @@ class VGGishSegmenter(Executor):
     """
     Segment the Document blob into audio regions.
 
-    :param embedding_dim: the output dimensionality of the embedding
+    :param sampling_factor: the n in sampling notation s(nT),
+        used to multiply the chunks' sampling rate based on that of original audio docs
+    :param chunk_duration: sets the chunks' time length in seconds
+    :param default_traversal_paths: sets the travseral path(s) used to select parts within documents
     """
 
     def __init__(self, sampling_factor: int=2, chunk_duration: int = 10, default_traversal_paths: Iterable[str] = ['r'], *args, **kwargs ):
         super().__init__(*args, **kwargs)
-        self.sampling_factor = sampling_factor # i.e. the n in sampling notation s(nT)
+        self.sampling_factor = sampling_factor
         self.chunk_duration = chunk_duration
         self.default_traversal_paths = default_traversal_paths
         self.logger = JinaLogger(self.__class__.__name__)
@@ -28,7 +31,7 @@ class VGGishSegmenter(Executor):
         Encode all docs with audio and store the segmented regions in the chunks attribute of the docs.
 
         :param docs: documents sent to the segmenter, with tags containing their sampling rate.
-        :param parameters dictionary to define the sampling factor and traversal_path. For example,
+        :param parameters: dictionary to define the sampling factor and traversal_path. For example,
             `parameters={'traversal_paths': 'c', 'sampling_factor': 10}`
             will set the parameters for traversal_paths, sampling_factor and that are actually used
         """
