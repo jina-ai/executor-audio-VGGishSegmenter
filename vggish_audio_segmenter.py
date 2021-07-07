@@ -14,6 +14,20 @@ class VGGishSegmenter(Executor):
 
     :param sampling_factor: the n in sampling notation s(nT),
         used to multiply the chunks' sampling rate based on that of original audio docs
+            e.g.
+            With sampling factor of 2, sampling rate of 44.1kHz, and doc blob of length 204800,
+                the beginning and end sequence of chunks should be :
+
+                beg=0,    end=44100
+                beg=22050,    end=66150
+                beg=44100,    end=88200
+                beg=66150,    end=110250
+                beg=88200,    end=132300
+                beg=110250,    end=154350
+                beg=132300,    end=176400
+                beg=154350,    end=198450
+                beg=176400,    end=220500
+
     :param chunk_duration: sets the chunks' time length in seconds
     :param default_traversal_paths: sets the travseral path(s) used to select parts within documents
     """
@@ -38,55 +52,39 @@ class VGGishSegmenter(Executor):
         if not docs:
             return
 
+        def _get_num_chunks_per_channel(doc_blob, sampling_factor):
+            num_channels = doc_blob.ndim
+            if num_channels == 1:
+                num_chunks_per_channel = int(doc.blob.shape[0] / chunk_size) * sampling_factor + 1
+                channel_tags = ('mono',)
+            else:
+                num_chunks_per_channel = int(doc.blob.shape[1] / chunk_size) * sampling_factor + 1
+                channel_tags = ('left', 'right')
+
+            return num_chunks_per_channel, channel_tags
+
         filtered_docs = self._get_input_data(docs, parameters)
 
         for doc in filtered_docs:
             # a chunk consists of samples collected during chunk_duration
             doc_sampling_rate = doc.tags['sampling_rate']
             chunk_size = int(self.chunk_duration * doc_sampling_rate) # number of samples
-            num_channels = doc.blob.ndim
-            channel_tags = ('mono',) if num_channels == 1 else ('left', 'right')
-
-            '''
-            With sampling factor of 2, sampling rate of 44.1kHz, and doc blob of length 204800, 
-                the beginning and end sequence of chunks should be :
-                
-                beg=0,    end=44100
-                beg=22050,    end=66150
-                beg=44100,    end=88200
-                beg=66150,    end=110250
-                beg=88200,    end=132300
-                beg=110250,    end=154350
-                beg=132300,    end=176400
-                beg=154350,    end=198450
-                beg=176400,    end=220500
-            '''
             sampling_factor = parameters.get('sampling_factor', self.sampling_factor)
-            if num_channels==1:
-                num_chunks_per_channel = int(doc.blob.shape[0] / chunk_size)*sampling_factor + 1
+            num_chunks_per_channel, channel_tags = _get_num_chunks_per_channel(doc.blob, sampling_factor)
+
+            for channel_idx, (chunks, tag) in enumerate(zip(doc.blob, channel_tags)): # traverse through channels
                 for chunk_id in range(num_chunks_per_channel):
-                    beg = int(chunk_id * chunk_size/sampling_factor)
+                    beg = int(chunk_id * chunk_size / sampling_factor)
                     end = beg + chunk_size
-                    if end > doc.blob.size:
+                    segment = doc.blob if doc.blob.ndim == 1 else chunks
+                    segment_size = len(segment)
+                    if end > segment_size:
                         continue
                     doc.chunks.append(
                         Document(
-                            blob=doc.blob[beg:end],
+                            blob=segment[beg:end],
                             location=[beg, end],
-                            tags={'channel': channel_tags[0], 'sampling_rate': doc_sampling_rate*sampling_factor}))
-            else:
-                num_chunks_per_channel = int(doc.blob.shape[1] / chunk_size)*sampling_factor + 1
-                for channel_idx, (chunks, tag) in enumerate(zip(doc.blob, channel_tags)): # traverse through channels
-                    for chunk_id in range(num_chunks_per_channel):
-                        beg = int(chunk_id * chunk_size / sampling_factor)
-                        end = beg + chunk_size
-                        if end > chunks.size:
-                            continue
-                        doc.chunks.append(
-                            Document(
-                                blob=chunks[beg:end],
-                                location=[beg, end],
-                                tags={'channel': tag, 'sampling_rate': doc_sampling_rate*sampling_factor}))
+                            tags={'channel': tag, 'sampling_rate': doc_sampling_rate*sampling_factor}))
 
         for doc in filtered_docs:
             result_chunk = []
